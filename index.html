@@ -119,6 +119,11 @@
     </style>
 </head>
 <body>
+    <div>
+        <p>Your ID: <span id="userIdDisplay">Connecting...</span></p>
+        <p>Zeke Points: <span id="pointsDisplay">0</span></p>
+    </div>
+
     <div class="cardList" id="box-contents">
         <div class="card-track" id="card-track"></div>
     </div>
@@ -130,21 +135,73 @@
         <p class="mythical">Mythical</p>
         <p class="zekest">Zekest</p>
     </div>
-    <div class="collectedZekes" id="collection">
+    <button id="spin">Spin (100 Points)</button>
+
+    <h3>Collected Zekes</h3>
+    <div class="collectedZekes" id="collection"></div>
+
+    <h3>Trade</h3>
+    <div id="tradeContainer">
+        <div>
+            <label>Target User ID:</label>
+            <input type="text" id="tradeTargetUid" placeholder="Enter receiver ID">
+        </div>
+        <div>
+            <label>Offer Points:</label>
+            <input type="number" id="offerPoints" value="0" min="0">
+            <label>Offer Item:</label>
+            <select id="offerItemSelect"><option value="">None</option></select>
+        </div>
+        <div>
+            <label>Request Points:</label>
+            <input type="number" id="requestPoints" value="0" min="0">
+            <label>Request Item ID:</label>
+            <input type="text" id="requestItemId" placeholder="Item ID or leave blank">
+        </div>
+        <button id="sendTradeBtn">Send Trade</button>
+
+        <h4>Incoming Trades</h4>
+        <div id="incomingTrades"></div>
     </div>
-    <button id="spin">Spin</button>
+
     <div id="rewardPopup" class="rewardMessage">
         <p id="rarity"></p>
         <p id="worn"></p>
         <img id="wonZeke" alt="Won Zeke">
     </div>
 
-    <script>
+    <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set, push, update, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCyD2K3TT7hOfakFPgJ9mMjTEM8Jim9_rA",
+      authDomain: "z-clicker-97488.firebaseapp.com",
+      projectId: "z-clicker-97488",
+      storageBucket: "z-clicker-97488.firebasestorage.app",
+      messagingSenderId: "686862323992",
+      appId: "1:686862323992:web:e25c46b7deb67254278e6d",
+      databaseURL: "https://z-clicker-97488-default-rtdb.firebaseio.com" 
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    let currentUser = null;
+    let userData = { points: 0, inventory: {} };
+
     document.addEventListener('DOMContentLoaded', function() {
         var cardList = document.querySelector('.cardList');
         var track = document.getElementById('card-track');
         var spinButton = document.getElementById('spin');
         var rewardPopup = document.getElementById('rewardPopup');
+        var collectionDiv = document.getElementById('collection');
+        var offerItemSelect = document.getElementById('offerItemSelect');
+        var sendTradeBtn = document.getElementById('sendTradeBtn');
+        var incomingTradesDiv = document.getElementById('incomingTrades');
+
         var cardWidth = 100;
         var winningCardIndex = null;
         var itemsPool = [
@@ -156,6 +213,171 @@
             { src: "zeke.png", rarity: "zekest", message: "Zekest Zekey", probability: 0.001 }
         ];
         var totalTrackCards = 60;
+
+        signInAnonymously(auth);
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('userIdDisplay').innerText = user.uid;
+                
+                const userRef = ref(db, 'users/' + user.uid);
+                onValue(userRef, (snapshot) => {
+                    const val = snapshot.val() || {};
+                    if (val.zekePoints === undefined && val.points === undefined) {
+                        set(ref(db, 'users/' + user.uid + '/zekePoints'), 1000);
+                        userData.points = 1000;
+                    } else {
+                        userData.points = val.zekePoints !== undefined ? val.zekePoints : val.points;
+                    }
+                    userData.inventory = val.inventory || {};
+                    
+                    document.getElementById('pointsDisplay').innerText = userData.points;
+                    renderInventory();
+                });
+
+                const tradesRef = ref(db, 'trades');
+                onValue(tradesRef, (snapshot) => {
+                    const trades = snapshot.val() || {};
+                    renderIncomingTrades(trades);
+                });
+            }
+        });
+
+        function renderInventory() {
+            collectionDiv.innerHTML = '';
+            offerItemSelect.innerHTML = '<option value="">None</option>';
+            
+            for (let id in userData.inventory) {
+                let item = userData.inventory[id];
+                
+                let img = document.createElement('img');
+                img.src = item.src;
+                img.className = 'card ' + item.rarity;
+                img.title = 'ID: ' + id + ' | ' + item.rarity + ' (' + item.worn + ')';
+                collectionDiv.appendChild(img);
+
+                let opt = document.createElement('option');
+                opt.value = id;
+                opt.innerText = item.rarity + ' (' + item.worn + ') - ID: ' + id;
+                offerItemSelect.appendChild(opt);
+            }
+        }
+
+        function renderIncomingTrades(trades) {
+            incomingTradesDiv.innerHTML = '';
+            for (let tradeId in trades) {
+                let trade = trades[tradeId];
+                if (trade.receiverId === currentUser.uid && trade.status === 'pending') {
+                    let div = document.createElement('div');
+                    div.innerHTML = `<p>From: ${trade.senderId}</p>
+                                     <p>They Offer: ${trade.offeredPoints} Points, Item ID: ${trade.offeredItemId || 'None'}</p>
+                                     <p>They Request: ${trade.requestedPoints} Points, Item ID: ${trade.requestedItemId || 'None'}</p>`;
+                    
+                    let acceptBtn = document.createElement('button');
+                    acceptBtn.innerText = 'Accept';
+                    acceptBtn.onclick = () => acceptTrade(tradeId, trade);
+
+                    let declineBtn = document.createElement('button');
+                    declineBtn.innerText = 'Decline';
+                    declineBtn.onclick = () => declineTrade(tradeId);
+
+                    div.appendChild(acceptBtn);
+                    div.appendChild(declineBtn);
+                    incomingTradesDiv.appendChild(div);
+                }
+            }
+        }
+
+        sendTradeBtn.addEventListener('click', function() {
+            let targetUid = document.getElementById('tradeTargetUid').value.trim();
+            let offerPoints = Number(document.getElementById('offerPoints').value) || 0;
+            let offerItemId = offerItemSelect.value;
+            let requestPoints = Number(document.getElementById('requestPoints').value) || 0;
+            let requestItemId = document.getElementById('requestItemId').value.trim();
+
+            if (!targetUid) {
+                alert('Please enter a target User ID.');
+                return;
+            }
+
+            if (offerPoints > userData.points) {
+                alert('You do not have enough points to offer.');
+                return;
+            }
+
+            const tradeRef = push(ref(db, 'trades'));
+            set(tradeRef, {
+                senderId: currentUser.uid,
+                receiverId: targetUid,
+                offeredPoints: offerPoints,
+                offeredItemId: offerItemId || null,
+                requestedPoints: requestPoints,
+                requestedItemId: requestItemId || null,
+                status: 'pending'
+            }).then(() => {
+                alert('Trade offer sent!');
+            });
+        });
+
+        async function acceptTrade(tradeId, trade) {
+            const senderSnap = await get(ref(db, 'users/' + trade.senderId));
+            if (!senderSnap.exists()) {
+                alert('Sender no longer exists.');
+                return;
+            }
+            const senderData = senderSnap.val();
+            const senderPoints = senderData.zekePoints !== undefined ? senderData.zekePoints : (senderData.points || 0);
+
+            if (senderPoints < trade.offeredPoints) {
+                alert('Sender does not have enough points anymore.');
+                return;
+            }
+            if (userData.points < trade.requestedPoints) {
+                alert('You do not have enough points to accept this trade.');
+                return;
+            }
+
+            let senderItem = null;
+            if (trade.offeredItemId) {
+                senderItem = senderData.inventory ? senderData.inventory[trade.offeredItemId] : null;
+                if (!senderItem) {
+                    alert('Sender no longer owns the offered item.');
+                    return;
+                }
+            }
+
+            let receiverItem = null;
+            if (trade.requestedItemId) {
+                receiverItem = userData.inventory ? userData.inventory[trade.requestedItemId] : null;
+                if (!receiverItem) {
+                    alert('You no longer own the requested item.');
+                    return;
+                }
+            }
+
+            const updates = {};
+            updates['users/' + trade.senderId + '/zekePoints'] = senderPoints - trade.offeredPoints + trade.requestedPoints;
+            updates['users/' + currentUser.uid + '/zekePoints'] = userData.points - trade.requestedPoints + trade.offeredPoints;
+
+            if (trade.offeredItemId) {
+                updates['users/' + trade.senderId + '/inventory/' + trade.offeredItemId] = null;
+                updates['users/' + currentUser.uid + '/inventory/' + trade.offeredItemId] = senderItem;
+            }
+            if (trade.requestedItemId) {
+                updates['users/' + currentUser.uid + '/inventory/' + trade.requestedItemId] = null;
+                updates['users/' + trade.senderId + '/inventory/' + trade.requestedItemId] = receiverItem;
+            }
+
+            updates['trades/' + tradeId + '/status'] = 'accepted';
+
+            await update(ref(db), updates);
+            alert('Trade completed!');
+        }
+
+        function declineTrade(tradeId) {
+            update(ref(db, 'trades/' + tradeId), { status: 'declined' });
+        }
 
         function generateTrack() {
             track.innerHTML = '';
@@ -186,6 +408,15 @@
         generateTrack();
 
         function spin() {
+            if (userData.points < 100) {
+                alert('Not enough Zeke points! Spinning costs 100 points.');
+                return;
+            }
+
+            update(ref(db, 'users/' + currentUser.uid), {
+                zekePoints: userData.points - 100
+            });
+
             spinButton.disabled = true;
             generateTrack();
             track.style.transition = 'none';
@@ -215,7 +446,7 @@
 
         track.addEventListener('transitionend', function() {
             if (winningCardIndex !== null) {
-                var allCards = document.querySelectorAll('.card');
+                var allCards = document.querySelectorAll('#card-track .card');
                 var winningCard = allCards[winningCardIndex];
                 var rarity = winningCard.dataset.rarity;
                 var formattedRarity = rarity.charAt(0).toUpperCase() + rarity.slice(1);
@@ -235,6 +466,17 @@
                 var announcementText = "You got a " + formattedRarity + " Zeke!";
                 var utterance = new SpeechSynthesisUtterance(announcementText);
                 window.speechSynthesis.speak(utterance);
+
+                if (currentUser) {
+                    var newItemKey = push(ref(db, 'users/' + currentUser.uid + '/inventory')).key;
+                    var newItem = {
+                        rarity: rarity,
+                        worn: wornString,
+                        message: winningCard.dataset.message,
+                        src: winningCard.src
+                    };
+                    set(ref(db, 'users/' + currentUser.uid + '/inventory/' + newItemKey), newItem);
+                }
 
                 winningCardIndex = null;
             }
