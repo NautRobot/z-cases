@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Z-Cases</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            padding: 0;
+            margin: 0;
+        }
+        .cardList {
+            height: 100px;
+            width: 300px;
+            position: relative;
+            margin: 20px auto;
+            border: 2px solid #33e;
+            overflow: hidden;
+            background: #eee;
+        }
+        .card-track {
+            display: flex;
+            white-space: nowrap;
+            width: max-content;
+            transform: translateX(0px);
+        }
+        .card {
+            display: inline-block;
+            height: 96px;
+            width: 100px;
+            object-fit: cover;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+        .cardList::before, .cardList::after {
+            content: '';
+            display: block;
+            z-index: 100;
+            width: 0px;
+            height: 0px;
+            transform: translateX(-50%);
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            position: absolute;
+            left: 50%;
+        }
+        .cardList::before {
+            top: 0px;
+            border-top: 12px solid #ff0000;
+        }
+        .cardList::after {
+            bottom: 0px;
+            border-bottom: 12px solid #ff0000;
+        }
+        .common { border: 4px solid green; filter: sepia(1) saturate(3) hue-rotate(70deg); }
+        .rare { border: 4px solid lightblue; filter: sepia(1) saturate(3) hue-rotate(160deg); }
+        .epic { border: 4px solid purple; filter: sepia(1) saturate(3) hue-rotate(240deg); }
+        .legendary { border: 4px solid orange; filter: sepia(1) saturate(4) hue-rotate(340deg); }
+        .mythical { border: 4px solid red; filter: sepia(1) saturate(5) hue-rotate(20deg); }
+        .zekest {
+            border: 4px solid transparent;
+            border-image: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet) 1;
+            animation: rainbowShift 3s linear infinite;
+        }
+        @keyframes rainbowShift {
+            0% { filter: sepia(1) saturate(5) hue-rotate(0deg); }
+            100% { filter: sepia(1) saturate(5) hue-rotate(360deg); }
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            cursor: pointer;
+        }
+        
+        .rewardMessage {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 99999;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: rgb(255, 255, 255);
+            font-size: 3rem;
+            font-family: sans-serif;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .rewardMessage.active {
+            opacity: 1;
+        }
+        #rarity {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #wonZeke {
+            max-height: 0vh; 
+            width: auto;
+            transform: scale(0);
+            transition: max-height 2.5s cubic-bezier(0.1, 1, 0.1, 1), transform 2.5s cubic-bezier(0.1, 1, 0.1, 1);
+        }
+        .rewardMessage.active #wonZeke {
+            max-height: 60vh;
+            transform: scale(1);
+        }
+        .rarityDescription {
+            width: 100px;
+            height: 100px;
+            left: 25px;
+            top: 25px;
+            position: absolute;
+        }
+    </style>
+</head>
+<body>
+    <div class="cardList" id="box-contents">
+        <div class="card-track" id="card-track"></div>
+    </div>
+    <div class="rarityDescription" id="description">
+        <p class="common">Common</p>
+        <p class="rare">Rare</p>
+        <p class="epic">Epic</p>
+        <p class="legendary">Legendary</p>
+        <p class="mythical">Mythical</p>
+        <p class="zekest">Zekest</p>
+    </div>
+    <div class="collectedZekes" id="collection">
+    </div>
+    <button id="spin">Spin</button>
+    <div id="rewardPopup" class="rewardMessage">
+        <p id="rarity"></p>
+        <p id="worn"></p>
+        <img id="wonZeke" alt="Won Zeke">
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var cardList = document.querySelector('.cardList');
+        var track = document.getElementById('card-track');
+        var spinButton = document.getElementById('spin');
+        var rewardPopup = document.getElementById('rewardPopup');
+        var cardWidth = 100;
+        var winningCardIndex = null;
+        var itemsPool = [
+            { src: "zeke.png", rarity: "common", message: "Common Zeke", probability: 0.60 },
+            { src: "zeke.png", rarity: "rare", message: "Rare Zeke", probability: 0.25 },
+            { src: "zeke.png", rarity: "epic", message: "Epic Zeke", probability: 0.10 },
+            { src: "zeke.png", rarity: "legendary", message: "Legendary Zeke", probability: 0.04 },
+            { src: "zeke.png", rarity: "mythical", message: "Mythical Zeke", probability: 0.009 },
+            { src: "zeke.png", rarity: "zekest", message: "Zekest Zekey", probability: 0.001 }
+        ];
+        var totalTrackCards = 60;
+
+        function generateTrack() {
+            track.innerHTML = '';
+            for (var i = 0; i < totalTrackCards; i++) {
+                var selectedItem = pickItemByProbability(itemsPool);
+                var img = document.createElement('img');
+                img.src = selectedItem.src;
+                img.className = 'card ' + selectedItem.rarity;
+                img.dataset.message = selectedItem.message;
+                img.dataset.rarity = selectedItem.rarity;
+                img.dataset.worn = Math.random();
+                track.appendChild(img);
+            }
+        }
+
+        function pickItemByProbability(pool) {
+            var roll = Math.random();
+            var cumulativeProbability = 0;
+            for (var i = 0; i < pool.length; i++) {
+                cumulativeProbability += pool[i].probability;
+                if (roll <= cumulativeProbability) {
+                    return pool[i];
+                }
+            }
+            return pool[pool.length - 1];
+        }
+
+        generateTrack();
+
+        function spin() {
+            spinButton.disabled = true;
+            generateTrack();
+            track.style.transition = 'none';
+            track.style.transform = 'translateX(0px)';
+            track.offsetHeight;
+            winningCardIndex = Math.floor(Math.random() * 10) + 45;
+            var targetOffset = (winningCardIndex * cardWidth) - (cardList.offsetWidth / 2) + (cardWidth / 2);
+            var innerCardRandomness = Math.floor(Math.random() * 60) - 30;
+            targetOffset += innerCardRandomness;
+            track.style.transition = 'transform 8s cubic-bezier(0.15, 0.85, 0.35, 1)';
+            track.style.transform = 'translateX(-' + targetOffset + 'px)';
+        }
+
+        function getWearName(wornAmount) {
+            if (wornAmount < 0.07) {
+                return "Factory New";
+            } else if (wornAmount < 0.15) {
+                return "Minimal Wear";
+            } else if (wornAmount < 0.38) {
+                return "Field Tested";
+            } else if (wornAmount < 0.45) {
+                return "Well Worn";
+            } else {
+                return "Battle Scarred";
+            }
+        }
+
+        track.addEventListener('transitionend', function() {
+            if (winningCardIndex !== null) {
+                var allCards = document.querySelectorAll('.card');
+                var winningCard = allCards[winningCardIndex];
+                var rarity = winningCard.dataset.rarity;
+                var formattedRarity = rarity.charAt(0).toUpperCase() + rarity.slice(1);
+                var wornAmount = winningCard.dataset.worn;
+                var wornString = getWearName(wornAmount);
+                
+                document.getElementById("rarity").innerHTML = "You got a: " + formattedRarity + " Zeke";
+                document.getElementById("worn").innerHTML = "Your Zeke is: " + wornString;
+                document.getElementById("wonZeke").src = winningCard.src; 
+                document.getElementById("wonZeke").className = winningCard.className;
+                
+                rewardPopup.style.display = "flex";
+                setTimeout(function() {
+                    rewardPopup.classList.add('active');
+                }, 10);
+
+                var announcementText = "You got a " + formattedRarity + " Zeke!";
+                var utterance = new SpeechSynthesisUtterance(announcementText);
+                window.speechSynthesis.speak(utterance);
+
+                winningCardIndex = null;
+            }
+        });
+
+        rewardPopup.addEventListener('click', function() {
+            rewardPopup.classList.remove('active');
+            setTimeout(function() {
+                rewardPopup.style.display = "none";
+                spinButton.disabled = false;
+            }, 500);
+        });
+
+        spinButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            spin();
+        });
+    });
+    </script>
+</body>
+</html>
