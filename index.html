@@ -112,10 +112,31 @@
         .rarityDescription {
             width: 100px;
             height: 100px;
-            left: 25px;
-            top: 25px;
+            left: 0px;
+            top: 40px;
             position: absolute;
         }
+        #zekeCollection {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+        }
+
+        #zekeCollection {
+          grid-template-columns: repeat(5, 1fr); 
+          gap: 10px; 
+          
+          max-height: 400px;
+          overflow-y: auto;  
+          
+          overflow-x: hidden; 
+        }
+        
+        #zekeCollection img.card {
+            width: auto;
+          display: block;
+        }
+
     </style>
 </head>
 <body>
@@ -135,10 +156,12 @@
         <p class="mythical">Mythical</p>
         <p class="zekest">Zekest</p>
     </div>
-    <button id="spin">Spin (100 Points)</button>
+    <button id="spin">Spin (20 Points)</button>
 
-    <h3>Collected Zekes</h3>
-    <div class="collectedZekes" id="collection"></div>
+    <div id='zekeCollection'>
+        <h3>Collected Zekes</h3>
+        <div class="collectedZekes" id="collection"></div>
+    </div>
 
     <h3>Trade</h3>
     <div id="tradeContainer">
@@ -225,8 +248,8 @@
                 onValue(userRef, (snapshot) => {
                     const val = snapshot.val() || {};
                     if (val.zekePoints === undefined && val.points === undefined) {
-                        set(ref(db, 'users/' + user.uid + '/zekePoints'), 1000);
-                        userData.points = 1000;
+                        set(ref(db, 'users/' + user.uid + '/zekePoints'), 10);
+                        userData.points = 10;
                     } else {
                         userData.points = val.zekePoints !== undefined ? val.zekePoints : val.points;
                     }
@@ -408,13 +431,13 @@
         generateTrack();
 
         function spin() {
-            if (userData.points < 100) {
-                alert('Not enough Zeke points! Spinning costs 100 points.');
+            if (userData.points < 20) {
+                alert('Not enough Zeke points! Spinning costs 20 points.');
                 return;
             }
 
             update(ref(db, 'users/' + currentUser.uid), {
-                zekePoints: userData.points - 100
+                zekePoints: userData.points - 20
             });
 
             spinButton.disabled = true;
