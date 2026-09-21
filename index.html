@@ -116,29 +116,29 @@
             top: 40px;
             position: absolute;
         }
-        #zekeCollection {
-            position: absolute;
-            right: 60px;
-            top: 10px;
-        }
-
-        #zekeCollection .collectedZekes {
-          display: grid;
+        #zekeCollection { 
+          position: absolute; 
+          right: 60px; 
+          top: 10px; 
+        } 
+        
+        #zekeCollection .collectedZekes { 
+          display: grid; 
           grid-template-columns: repeat(3, 1fr); 
           gap: 10px; 
-          
-          max-height: 400px;
-          overflow-y: auto;  
-          width: 300px;
-          
+          max-height: 400px; 
+          overflow-y: auto; 
+          width: 300px; 
           overflow-x: hidden; 
-        }
+        } 
         
-        #zekeCollection img.card {
-            width: auto;
-            display: block;
-            cursor: pointer;
+        #zekeCollection .collectedZekes img.card { 
+          width: 100%; 
+          height: auto;
+          display: block; 
+          cursor: pointer; 
         }
+
         
         #zekeCollection img.card:hover {
             transform: scale(1.05); 
