@@ -122,7 +122,8 @@
             top: 10px;
         }
 
-        #zekeCollection {
+        #zekeCollection .collectedZekes {
+          display: grid;
           grid-template-columns: repeat(5, 1fr); 
           gap: 10px; 
           
@@ -134,9 +135,13 @@
         
         #zekeCollection img.card {
             width: auto;
-          display: block;
+            display: block;
+            cursor: pointer;
         }
-
+        
+        #zekeCollection img.card:hover {
+            transform: scale(1.05); 
+        }
     </style>
 </head>
 <body>
@@ -167,7 +172,7 @@
     <div id="tradeContainer">
         <div>
             <label>Target User ID:</label>
-            <input type="text" id="tradeTargetUid" placeholder="Enter receiver ID">
+            <input type="text" id="tradeTargetUid" placeholder="5-char User ID" maxlength="5">
         </div>
         <div>
             <label>Offer Points:</label>
@@ -179,7 +184,7 @@
             <label>Request Points:</label>
             <input type="number" id="requestPoints" value="0" min="0">
             <label>Request Item ID:</label>
-            <input type="text" id="requestItemId" placeholder="Item ID or leave blank">
+            <input type="text" id="requestItemId" placeholder="4-char Item ID" maxlength="4">
         </div>
         <button id="sendTradeBtn">Send Trade</button>
 
@@ -213,7 +218,16 @@
     const auth = getAuth(app);
 
     let currentUser = null;
-    let userData = { points: 0, inventory: {} };
+    let userData = { points: 0, inventory: {}, shortId: "" };
+
+    function generateShortId(length) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
         var cardList = document.querySelector('.cardList');
@@ -239,23 +253,41 @@
 
         signInAnonymously(auth);
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
-                document.getElementById('userIdDisplay').innerText = user.uid;
                 
+                // Init short ID and points mapping BEFORE listening (prevents loop)
+                const userSnap = await get(ref(db, 'users/' + user.uid));
+                let val = userSnap.val() || {};
+                let updates = {};
+                let needsUpdate = false;
+
+                if (val.zekePoints === undefined && val.points === undefined) {
+                    updates['users/' + user.uid + '/zekePoints'] = 10;
+                    needsUpdate = true;
+                }
+                
+                if (!val.shortId) {
+                    let newShortId = generateShortId(5);
+                    updates['users/' + user.uid + '/shortId'] = newShortId;
+                    updates['shortToUid/' + newShortId] = user.uid;
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate) {
+                    await update(ref(db), updates);
+                }
+
                 const userRef = ref(db, 'users/' + user.uid);
                 onValue(userRef, (snapshot) => {
-                    const val = snapshot.val() || {};
-                    if (val.zekePoints === undefined && val.points === undefined) {
-                        set(ref(db, 'users/' + user.uid + '/zekePoints'), 10);
-                        userData.points = 10;
-                    } else {
-                        userData.points = val.zekePoints !== undefined ? val.zekePoints : val.points;
-                    }
-                    userData.inventory = val.inventory || {};
+                    const dbVal = snapshot.val() || {};
+                    userData.points = dbVal.zekePoints !== undefined ? dbVal.zekePoints : dbVal.points;
+                    userData.shortId = dbVal.shortId;
+                    userData.inventory = dbVal.inventory || {};
                     
                     document.getElementById('pointsDisplay').innerText = userData.points;
+                    document.getElementById('userIdDisplay').innerText = userData.shortId;
                     renderInventory();
                 });
 
@@ -278,6 +310,28 @@
                 img.src = item.src;
                 img.className = 'card ' + item.rarity;
                 img.title = 'ID: ' + id + ' | ' + item.rarity + ' (' + item.worn + ')';
+                
+                img.onclick = () => {
+                    let basePrices = {
+                        common: 3,
+                        rare: 5,
+                        epic: 7,
+                        legendary: 9,
+                        mythical: 11,
+                        zekest: 13
+                    };
+                    let basePrice = basePrices[item.rarity] || 3;
+                    let wear = item.wearFloat !== undefined ? item.wearFloat : 0.5;
+                    let sellPrice = Math.round(basePrice + (10 * wear));
+                    
+                    if (confirm(`Confirm sell? Sell this ${item.rarity} Zeke for ${sellPrice} points?`)) {
+                        let updates = {};
+                        updates['users/' + currentUser.uid + '/inventory/' + id] = null;
+                        updates['users/' + currentUser.uid + '/zekePoints'] = userData.points + sellPrice;
+                        update(ref(db), updates);
+                    }
+                };
+
                 collectionDiv.appendChild(img);
 
                 let opt = document.createElement('option');
@@ -293,7 +347,10 @@
                 let trade = trades[tradeId];
                 if (trade.receiverId === currentUser.uid && trade.status === 'pending') {
                     let div = document.createElement('div');
-                    div.innerHTML = `<p>From: ${trade.senderId}</p>
+                    // Show short ID if available to receiver
+                    let displaySender = trade.senderShortId || trade.senderId;
+                    
+                    div.innerHTML = `<p>From: ${displaySender}</p>
                                      <p>They Offer: ${trade.offeredPoints} Points, Item ID: ${trade.offeredItemId || 'None'}</p>
                                      <p>They Request: ${trade.requestedPoints} Points, Item ID: ${trade.requestedItemId || 'None'}</p>`;
                     
@@ -312,26 +369,39 @@
             }
         }
 
-        sendTradeBtn.addEventListener('click', function() {
-            let targetUid = document.getElementById('tradeTargetUid').value.trim();
+        sendTradeBtn.addEventListener('click', async function() {
+            let targetShortId = document.getElementById('tradeTargetUid').value.trim();
             let offerPoints = Number(document.getElementById('offerPoints').value) || 0;
             let offerItemId = offerItemSelect.value;
             let requestPoints = Number(document.getElementById('requestPoints').value) || 0;
             let requestItemId = document.getElementById('requestItemId').value.trim();
 
-            if (!targetUid) {
-                alert('Please enter a target User ID.');
+            if (!targetShortId || targetShortId.length !== 5) {
+                alert('Please enter a valid 5-character Target User ID.');
                 return;
             }
-
             if (offerPoints > userData.points) {
                 alert('You do not have enough points to offer.');
+                return;
+            }
+            
+            // Resolve Short ID into long UID for internal backend mapping
+            const uidSnapshot = await get(ref(db, 'shortToUid/' + targetShortId));
+            if (!uidSnapshot.exists()) {
+                alert('User ID not found! Ensure they have opened the game at least once to be assigned an ID.');
+                return;
+            }
+            let targetUid = uidSnapshot.val();
+            
+            if (targetUid === currentUser.uid) {
+                alert('You cannot trade with yourself.');
                 return;
             }
 
             const tradeRef = push(ref(db, 'trades'));
             set(tradeRef, {
                 senderId: currentUser.uid,
+                senderShortId: userData.shortId, // So receiver knows who it is from
                 receiverId: targetUid,
                 offeredPoints: offerPoints,
                 offeredItemId: offerItemId || null,
@@ -491,10 +561,18 @@
                 window.speechSynthesis.speak(utterance);
 
                 if (currentUser) {
-                    var newItemKey = push(ref(db, 'users/' + currentUser.uid + '/inventory')).key;
+                    // Generate unique 4 character item ID
+                    let newItemKey = generateShortId(4);
+                    
+                    // Collision check (highly unlikely with 4 chars for small inventory, but safe)
+                    while(userData.inventory && userData.inventory[newItemKey]) {
+                        newItemKey = generateShortId(4);
+                    }
+                    
                     var newItem = {
                         rarity: rarity,
                         worn: wornString,
+                        wearFloat: parseFloat(wornAmount), 
                         message: winningCard.dataset.message,
                         src: winningCard.src
                     };
