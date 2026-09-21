@@ -323,7 +323,7 @@
                     };
                     let basePrice = basePrices[item.rarity] || 3;
                     let wear = item.wearFloat !== undefined ? item.wearFloat : 0.5;
-                    let sellPrice = Math.round(basePrice + (10 * wear));
+                    let sellPrice = Math.round(basePrice + (1 / wear));
                     
                     if (confirm(`Confirm sell? Sell this ${item.rarity} Zeke for ${sellPrice} points?`)) {
                         let updates = {};
