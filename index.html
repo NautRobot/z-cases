@@ -264,6 +264,10 @@
                 let updates = {};
                 let needsUpdate = false;
 
+                if (val.banned) {
+                    document.body.innerHTML = "";
+                }
+
                 if (val.zekePoints === undefined && val.points === undefined) {
                     updates['users/' + user.uid + '/zekePoints'] = 10;
                     needsUpdate = true;
