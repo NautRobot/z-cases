@@ -139,7 +139,6 @@
           cursor: pointer; 
         }
 
-        
         #zekeCollection img.card:hover {
             transform: scale(1.05); 
         }
@@ -203,6 +202,9 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, onValue, set, push, update, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    
+    // Import FingerprintJS ES Module
+    import FingerprintJS from "https://openfpcdn.io/fingerprintjs/v4";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCyD2K3TT7hOfakFPgJ9mMjTEM8Jim9_rA",
@@ -220,6 +222,27 @@
 
     let currentUser = null;
     let userData = { points: 0, inventory: {}, shortId: "" };
+    let deviceVisitorId = null;
+
+    // Execution function to instantly block banned users
+    function triggerBanUI(reason = "YOUR DEVICE IS PERMANENTLY BANNED") {
+        window.speechSynthesis?.cancel();
+        document.body.innerHTML = `
+            <div style="
+                display: flex; 
+                flex-direction: column; 
+                justify-content: center; 
+                align-items: center; 
+                height: 100vh; 
+                background: #111; 
+                color: #ff3333; 
+                font-family: sans-serif; 
+                text-align: center;">
+                <h1 style="font-size: 3.5rem; margin-bottom: 1rem;">ACCESS DENIED</h1>
+                <p style="font-size: 1.5rem; color: #ccc;">${reason}</p>
+            </div>
+        `;
+    }
 
     function generateShortId(length) {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -230,7 +253,7 @@
         return result;
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
         var cardList = document.querySelector('.cardList');
         var track = document.getElementById('card-track');
         var spinButton = document.getElementById('spin');
@@ -252,21 +275,34 @@
         ];
         var totalTrackCards = 60;
 
+        // Initialize FingerprintJS and get device fingerprint ID
+        try {
+            const fp = await FingerprintJS.load();
+            const fpResult = await fp.get();
+            deviceVisitorId = fpResult.visitorId;
+
+            // REAL-TIME LISTENER FOR DEVICE FINGERPRINT BAN
+            const deviceBanRef = ref(db, 'bannedDevices/' + deviceVisitorId);
+            onValue(deviceBanRef, (snapshot) => {
+                if (snapshot.exists() && snapshot.val() === true) {
+                    triggerBanUI("This device fingerprint has been banned.");
+                }
+            });
+        } catch (e) {
+            console.error("FingerprintJS error:", e);
+        }
+
         signInAnonymously(auth);
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
                 
-                // Init short ID and points mapping BEFORE listening (prevents loop)
+                // Fetch current user record once to initialize defaults
                 const userSnap = await get(ref(db, 'users/' + user.uid));
                 let val = userSnap.val() || {};
                 let updates = {};
                 let needsUpdate = false;
-
-                if (val.banned) {
-                    document.body.innerHTML = "";
-                }
 
                 if (val.zekePoints === undefined && val.points === undefined) {
                     updates['users/' + user.uid + '/zekePoints'] = 10;
@@ -280,14 +316,32 @@
                     needsUpdate = true;
                 }
 
+                // Associate user account with device fingerprint
+                if (deviceVisitorId && val.fingerprint !== deviceVisitorId) {
+                    updates['users/' + user.uid + '/fingerprint'] = deviceVisitorId;
+                    needsUpdate = true;
+                }
+
                 if (needsUpdate) {
                     await update(ref(db), updates);
                 }
 
+                // REAL-TIME LISTENER FOR USER ACCOUNT BAN & DATA UPDATES
                 const userRef = ref(db, 'users/' + user.uid);
                 onValue(userRef, (snapshot) => {
                     const dbVal = snapshot.val() || {};
-                    userData.points = dbVal.zekePoints !== undefined ? dbVal.zekePoints : dbVal.points;
+                    
+                    // Instant kick if user account marked as banned
+                    if (dbVal.banned === true) {
+                        // Automatically ban device fingerprint as well
+                        if (deviceVisitorId) {
+                            set(ref(db, 'bannedDevices/' + deviceVisitorId), true);
+                        }
+                        triggerBanUI("Your account has been permanently banned.");
+                        return;
+                    }
+
+                    userData.points = dbVal.zekePoints !== undefined ? dbVal.zekePoints : (dbVal.points || 0);
                     userData.shortId = dbVal.shortId;
                     userData.inventory = dbVal.inventory || {};
                     
@@ -352,7 +406,6 @@
                 let trade = trades[tradeId];
                 if (trade.receiverId === currentUser.uid && trade.status === 'pending') {
                     let div = document.createElement('div');
-                    // Show short ID if available to receiver
                     let displaySender = trade.senderShortId || trade.senderId;
                     
                     div.innerHTML = `<p>From: ${displaySender}</p>
@@ -390,7 +443,6 @@
                 return;
             }
             
-            // Resolve Short ID into long UID for internal backend mapping
             const uidSnapshot = await get(ref(db, 'shortToUid/' + targetShortId));
             if (!uidSnapshot.exists()) {
                 alert('User ID not found! Ensure they have opened the game at least once to be assigned an ID.');
@@ -406,7 +458,7 @@
             const tradeRef = push(ref(db, 'trades'));
             set(tradeRef, {
                 senderId: currentUser.uid,
-                senderShortId: userData.shortId, // So receiver knows who it is from
+                senderShortId: userData.shortId,
                 receiverId: targetUid,
                 offeredPoints: offerPoints,
                 offeredItemId: offerItemId || null,
@@ -566,10 +618,8 @@
                 window.speechSynthesis.speak(utterance);
 
                 if (currentUser) {
-                    // Generate unique 4 character item ID
                     let newItemKey = generateShortId(4);
                     
-                    // Collision check (highly unlikely with 4 chars for small inventory, but safe)
                     while(userData.inventory && userData.inventory[newItemKey]) {
                         newItemKey = generateShortId(4);
                     }
@@ -602,8 +652,5 @@
         });
     });
     </script>
-    <a href="https://docs.google.com/document/d/1sMYzLG8JYmXiZ8qdFiloj5EgxuAmFwwsXc6Fouv2cvk/edit?usp=sharing">
-        Put ID's here by commenting with your Google Account to share your ID.
-    </a>
 </body>
 </html>
