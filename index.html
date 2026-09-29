@@ -203,6 +203,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, onValue, set, push, update, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { ClientJS } from 'https://openfpcdn.io'; // Ensure you import or script-tag load FingerprintJS
 
     const firebaseConfig = {
       apiKey: "AIzaSyCyD2K3TT7hOfakFPgJ9mMjTEM8Jim9_rA",
@@ -254,55 +255,78 @@
 
         signInAnonymously(auth);
 
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                
-                // Init short ID and points mapping BEFORE listening (prevents loop)
-                const userSnap = await get(ref(db, 'users/' + user.uid));
-                let val = userSnap.val() || {};
-                let updates = {};
-                let needsUpdate = false;
+// Initialize FingerprintJS agent once globally
+const fpPromise = FingerprintJS.load();
 
-                if (val.banned) {
-                    document.body.innerHTML = "";
-                }
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    currentUser = user;
 
-                if (val.zekePoints === undefined && val.points === undefined) {
-                    updates['users/' + user.uid + '/zekePoints'] = 10;
-                    needsUpdate = true;
-                }
-                
-                if (!val.shortId) {
-                    let newShortId = generateShortId(5);
-                    updates['users/' + user.uid + '/shortId'] = newShortId;
-                    updates['shortToUid/' + newShortId] = user.uid;
-                    needsUpdate = true;
-                }
+    // 1. Fetch Fingerprint data and Database snapshot in parallel for speed
+    const [fp, userSnap] = await Promise.all([
+      fpPromise.then(agent => agent.get()),
+      get(ref(db, 'users/' + user.uid))
+    ]);
 
-                if (needsUpdate) {
-                    await update(ref(db), updates);
-                }
+    const visitorId = fp.visitorId;
+    let val = userSnap.val() || {};
+    let updates = {};
+    let needsUpdate = false;
 
-                const userRef = ref(db, 'users/' + user.uid);
-                onValue(userRef, (snapshot) => {
-                    const dbVal = snapshot.val() || {};
-                    userData.points = dbVal.zekePoints !== undefined ? dbVal.zekePoints : dbVal.points;
-                    userData.shortId = dbVal.shortId;
-                    userData.inventory = dbVal.inventory || {};
-                    
-                    document.getElementById('pointsDisplay').innerText = userData.points;
-                    document.getElementById('userIdDisplay').innerText = userData.shortId;
-                    renderInventory();
-                });
+    // 2. Check ban status
+    if (val.banned) {
+      document.body.innerHTML = "";
+      return; // Stop execution if banned
+    }
 
-                const tradesRef = ref(db, 'trades');
-                onValue(tradesRef, (snapshot) => {
-                    const trades = snapshot.val() || {};
-                    renderIncomingTrades(trades);
-                });
-            }
-        });
+    // 3. Initialize points if missing
+    if (val.zekePoints === undefined && val.points === undefined) {
+      updates['users/' + user.uid + '/zekePoints'] = 10;
+      needsUpdate = true;
+    }
+
+    // 4. Initialize short ID if missing
+    if (!val.shortId) {
+      let newShortId = generateShortId(5);
+      updates['users/' + user.uid + '/shortId'] = newShortId;
+      updates['shortToUid/' + newShortId] = user.uid;
+      needsUpdate = true;
+    }
+
+    // 5. Store or update the Fingerprint ID if it doesn't match
+    if (val.fingerprint !== visitorId) {
+      updates['users/' + user.uid + '/fingerprint'] = visitorId;
+      // Optional: Track multiple device fingerprints globally for multi-account checking
+      updates['fingerprints/' + visitorId + '/' + user.uid] = true; 
+      needsUpdate = true;
+    }
+
+    // 6. Batch update to avoid multiple database writes
+    if (needsUpdate) {
+      await update(ref(db), updates);
+    }
+
+    // 7. Setup persistent listeners
+    const userRef = ref(db, 'users/' + user.uid);
+    onValue(userRef, (snapshot) => {
+      const dbVal = snapshot.val() || {};
+      userData.points = dbVal.zekePoints !== undefined ? dbVal.zekePoints : dbVal.points;
+      userData.shortId = dbVal.shortId;
+      userData.inventory = dbVal.inventory || {};
+      
+      document.getElementById('pointsDisplay').innerText = userData.points;
+      document.getElementById('userIdDisplay').innerText = userData.shortId;
+      renderInventory();
+    });
+
+    const tradesRef = ref(db, 'trades');
+    onValue(tradesRef, (snapshot) => {
+      const trades = snapshot.val() || {};
+      renderIncomingTrades(trades);
+    });
+  }
+});
+
 
         function renderInventory() {
             collectionDiv.innerHTML = '';
