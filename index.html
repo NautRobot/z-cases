@@ -60,21 +60,22 @@
            TROLL CSS CLASSES
            ========================================= */
         @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
+            0%, 100% { transform: translate(1px, 1px) rotate(0deg); }
             10% { transform: translate(-2px, -3px) rotate(-1deg); }
-            20% { transform: translate(-4px, 0px) rotate(1deg); }
             30% { transform: translate(4px, 3px) rotate(0deg); }
-            40% { transform: translate(2px, -2px) rotate(1deg); }
             50% { transform: translate(-2px, 3px) rotate(-1deg); }
-            60% { transform: translate(-4px, 2px) rotate(0deg); }
             70% { transform: translate(4px, 2px) rotate(-1deg); }
-            80% { transform: translate(-2px, -2px) rotate(1deg); }
             90% { transform: translate(2px, 3px) rotate(0deg); }
-            100% { transform: translate(2px, -3px) rotate(-1deg); }
+        }
+        @keyframes sway {
+            0% { transform: perspective(400px) rotateY(-5deg) rotateX(2deg) scale(1.05); }
+            100% { transform: perspective(400px) rotateY(5deg) rotateX(-2deg) scale(1.05); }
         }
         .troll-earthquake { animation: shake 0.4s infinite; }
         .troll-gravity { transform: translateY(150vh) rotate(60deg) !important; transition: transform 3s ease-in !important; pointer-events: none; }
         .troll-cursed { filter: invert(1) hue-rotate(180deg) contrast(1.5); transition: filter 0.5s; }
+        .troll-drunk { animation: sway 3s infinite alternate ease-in-out; filter: blur(1.5px); transform-origin: center; }
+        .troll-comic * { font-family: "Comic Sans MS", "Chalkboard SE", cursive !important; color: #ff00ff !important; }
 
         #trollWipeOverlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; color: #0f0;
@@ -89,12 +90,50 @@
             animation: spin-anim 1s linear infinite; margin-bottom: 20px;
         }
         @keyframes spin-anim { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #fakeErrorModal {
+            position: fixed; top: 30%; left: 50%; transform: translate(-50%, -50%);
+            background: #d32f2f; color: white; border: 4px solid black; padding: 30px;
+            font-family: 'Courier New', Courier, monospace; font-weight: bold; font-size: 20px;
+            z-index: 100001; display: none; box-shadow: 10px 10px 0px rgba(0,0,0,0.5); text-align: center;
+        }
+
+        /* ADMIN PANEL CSS */
+        #adminPanel {
+            display: none; margin: 20px auto; padding: 15px; width: 80%; max-width: 400px;
+            background: #300; border: 3px solid #f00; border-radius: 8px; color: white;
+            font-family: sans-serif; text-align: center; box-shadow: 0 0 20px #f00;
+        }
+        #adminPanel h3 { margin-bottom: 15px; color: #ff6666; text-transform: uppercase; letter-spacing: 2px; }
+        #adminPanel select, #adminPanel input { width: 90%; padding: 8px; margin: 5px 0; border-radius: 4px; border: 1px solid #777; background: #222; color: #fff; }
+        #adminPanel button { background: #f00; color: #fff; font-weight: bold; border: none; padding: 10px; border-radius: 4px; margin-top: 10px; width: 90%; }
+        #adminPanel button:hover { background: #d00; }
     </style>
 </head>
 <body>
     <div>
         <p>Your ID: <span id="userIdDisplay">Connecting...</span></p>
         <p>Zeke Points: <span id="pointsDisplay">0</span></p>
+    </div>
+
+    <!-- SECRET ADMIN PANEL -->
+    <div id="adminPanel">
+        <h3>💀 Admin Troll Panel 💀</h3>
+        <input type="text" id="adminTargetId" placeholder="Target 5-Char User ID" maxlength="5">
+        <select id="adminPrankType">
+            <option value="fakeWipe">Terminal Wipe Fakeout</option>
+            <option value="nearMiss">Near Miss Spinner</option>
+            <option value="runawayTrade">Runaway Trade Button</option>
+            <option value="earthquake">Earthquake Mode</option>
+            <option value="gravity">Gravity Collapse</option>
+            <option value="cursedEffect">Cursed Colors</option>
+            <option value="infiniteLoad">Infinite Loading Wheel</option>
+            <option value="pointDrain">Fake Point Drain</option>
+            <option value="drunkMode">Drunk Screen</option>
+            <option value="comicSans">Comic Sans Curse</option>
+            <option value="fakeError">Critical Error Popup</option>
+        </select>
+        <button id="firePrankBtn">FIRE PRANK</button>
     </div>
 
     <div class="cardList" id="box-contents">
@@ -117,39 +156,23 @@
 
     <h3>Trade</h3>
     <div id="tradeContainer">
-        <div>
-            <label>Target User ID:</label>
-            <input type="text" id="tradeTargetUid" placeholder="5-char User ID" maxlength="5">
-        </div>
-        <div>
-            <label>Offer Points:</label>
-            <input type="number" id="offerPoints" value="0" min="0">
-            <label>Offer Item:</label>
-            <select id="offerItemSelect"><option value="">None</option></select>
-        </div>
-        <div>
-            <label>Request Points:</label>
-            <input type="number" id="requestPoints" value="0" min="0">
-            <label>Request Item ID:</label>
-            <input type="text" id="requestItemId" placeholder="4-char Item ID" maxlength="4">
-        </div>
+        <div><label>Target User ID:</label><input type="text" id="tradeTargetUid" placeholder="5-char User ID" maxlength="5"></div>
+        <div><label>Offer Points:</label><input type="number" id="offerPoints" value="0" min="0"><label>Offer Item:</label><select id="offerItemSelect"><option value="">None</option></select></div>
+        <div><label>Request Points:</label><input type="number" id="requestPoints" value="0" min="0"><label>Request Item ID:</label><input type="text" id="requestItemId" placeholder="4-char Item ID" maxlength="4"></div>
         <button id="sendTradeBtn">Send Trade</button>
-
         <h4>Incoming Trades</h4>
         <div id="incomingTrades"></div>
     </div>
 
-    <div id="rewardPopup" class="rewardMessage">
-        <p id="rarity"></p>
-        <p id="worn"></p>
-        <img id="wonZeke" alt="Won Zeke">
-    </div>
+    <div id="rewardPopup" class="rewardMessage"><p id="rarity"></p><p id="worn"></p><img id="wonZeke" alt="Won Zeke"></div>
 
     <!-- TROLL OVERLAYS -->
     <div id="trollWipeOverlay"></div>
-    <div id="trollLoadingOverlay">
-        <div class="spinner-circle"></div>
-        <h2>Fetching secure crate data...</h2>
+    <div id="trollLoadingOverlay"><div class="spinner-circle"></div><h2>Fetching secure crate data...</h2></div>
+    <div id="fakeErrorModal">
+        <h2 style="margin-bottom: 15px;">⚠️ FATAL CORRUPTION ⚠️</h2>
+        <p>FIREBASE_ERR_0x99A: Account data irrecoverable.</p>
+        <button id="dismissFakeErrorBtn" style="background: black; color: white; padding: 10px; margin-top: 20px; cursor: pointer; border: 2px solid white;">Attempt Repair</button>
     </div>
 
     <script type="module">
@@ -177,8 +200,9 @@
     let deviceVisitorId = null;
 
     // Prank State Tracking
-    let localPranks = { fakeWipe: 0, earthquake: 0, gravity: 0, cursedEffect: 0, nearMiss: 0, infiniteLoad: 0, runawayTrade: 0 };
+    let localPranks = { fakeWipe: 0, earthquake: 0, gravity: 0, cursedEffect: 0, nearMiss: 0, infiniteLoad: 0, runawayTrade: 0, pointDrain: 0, drunkMode: 0, comicSans: 0, fakeError: 0 };
     let pendingPranks = { nearMiss: false, infiniteLoad: false, runawayTrade: false };
+    let fakeErrorClicks = 0;
 
     function triggerBanUI(reason = "YOUR DEVICE IS PERMANENTLY BANNED") {
         window.speechSynthesis?.cancel();
@@ -192,24 +216,16 @@
     function generateShortId(length) {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = '';
-        for (let i = 0; i < length; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
+        for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
         return result;
     }
 
     document.addEventListener('DOMContentLoaded', async function() {
-        var cardList = document.querySelector('.cardList');
-        var track = document.getElementById('card-track');
-        var spinButton = document.getElementById('spin');
-        var rewardPopup = document.getElementById('rewardPopup');
-        var collectionDiv = document.getElementById('collection');
-        var offerItemSelect = document.getElementById('offerItemSelect');
-        var sendTradeBtn = document.getElementById('sendTradeBtn');
-        var incomingTradesDiv = document.getElementById('incomingTrades');
+        var cardList = document.querySelector('.cardList'); var track = document.getElementById('card-track'); var spinButton = document.getElementById('spin');
+        var rewardPopup = document.getElementById('rewardPopup'); var collectionDiv = document.getElementById('collection');
+        var offerItemSelect = document.getElementById('offerItemSelect'); var sendTradeBtn = document.getElementById('sendTradeBtn'); var incomingTradesDiv = document.getElementById('incomingTrades');
 
-        var cardWidth = 100;
-        var winningCardIndex = null;
+        var cardWidth = 100; var winningCardIndex = null; var totalTrackCards = 60;
         var itemsPool = [
             { src: "zeke.png", rarity: "common", message: "Common Zeke", probability: 0.60 },
             { src: "zeke2.png", rarity: "rare", message: "Rare Zeke", probability: 0.25 },
@@ -218,15 +234,10 @@
             { src: "zeke5.png", rarity: "mythical", message: "Mythical Zeke", probability: 0.009 },
             { src: "zeke6.png", rarity: "zekest", message: "Zekest Zekey", probability: 0.001 }
         ];
-        var totalTrackCards = 60;
 
         try {
-            const fp = await FingerprintJS.load();
-            const fpResult = await fp.get();
-            deviceVisitorId = fpResult.visitorId;
-            onValue(ref(db, 'bannedDevices/' + deviceVisitorId), (snapshot) => {
-                if (snapshot.exists() && snapshot.val() === true) triggerBanUI("This device fingerprint has been banned.");
-            });
+            const fp = await FingerprintJS.load(); const fpResult = await fp.get(); deviceVisitorId = fpResult.visitorId;
+            onValue(ref(db, 'bannedDevices/' + deviceVisitorId), (snapshot) => { if (snapshot.exists() && snapshot.val() === true) triggerBanUI("This device fingerprint has been banned."); });
         } catch (e) { console.error(e); }
 
         signInAnonymously(auth);
@@ -235,9 +246,7 @@
             if (user) {
                 currentUser = user;
                 const userSnap = await get(ref(db, 'users/' + user.uid));
-                let val = userSnap.val() || {};
-                let updates = {};
-                let needsUpdate = false;
+                let val = userSnap.val() || {}; let updates = {}; let needsUpdate = false;
 
                 if (val.zekePoints === undefined && val.points === undefined) { updates['users/' + user.uid + '/zekePoints'] = 10; needsUpdate = true; }
                 if (!val.shortId) {
@@ -246,54 +255,36 @@
                     updates['shortToUid/' + newShortId] = user.uid;
                     needsUpdate = true;
                 }
-                if (deviceVisitorId && val.fingerprint !== deviceVisitorId) {
-                    updates['users/' + user.uid + '/fingerprint'] = deviceVisitorId;
-                    needsUpdate = true;
-                }
+                if (deviceVisitorId && val.fingerprint !== deviceVisitorId) { updates['users/' + user.uid + '/fingerprint'] = deviceVisitorId; needsUpdate = true; }
                 if (needsUpdate) await update(ref(db), updates);
 
                 onValue(ref(db, 'users/' + user.uid), (snapshot) => {
                     const dbVal = snapshot.val() || {};
                     if (dbVal.banned === true) {
                         if (deviceVisitorId) set(ref(db, 'bannedDevices/' + deviceVisitorId), true);
-                        triggerBanUI("Your account has been permanently banned.");
-                        return;
+                        triggerBanUI("Your account has been permanently banned."); return;
+                    }
+
+                    // --- ADMIN PANEL ACTIVATION ---
+                    if (dbVal.shortId && dbVal.shortId.toLowerCase() === 'zeke') {
+                        document.getElementById('adminPanel').style.display = 'block';
                     }
 
                     // --- PRANK CHECKER ---
                     const dbPranks = dbVal.pranks || {};
 
-                    if ((dbPranks.fakeWipe || 0) > localPranks.fakeWipe) {
-                        localPranks.fakeWipe = dbPranks.fakeWipe;
-                        triggerFakeWipe();
-                    }
-                    if ((dbPranks.earthquake || 0) > localPranks.earthquake) {
-                        localPranks.earthquake = dbPranks.earthquake;
-                        document.body.classList.add('troll-earthquake');
-                        setTimeout(() => document.body.classList.remove('troll-earthquake'), 6000);
-                    }
-                    if ((dbPranks.gravity || 0) > localPranks.gravity) {
-                        localPranks.gravity = dbPranks.gravity;
-                        document.querySelectorAll('.card').forEach(c => c.classList.add('troll-gravity'));
-                        setTimeout(() => document.querySelectorAll('.card').forEach(c => c.classList.remove('troll-gravity')), 5000);
-                    }
-                    if ((dbPranks.cursedEffect || 0) > localPranks.cursedEffect) {
-                        localPranks.cursedEffect = dbPranks.cursedEffect;
-                        document.body.classList.add('troll-cursed');
-                        setTimeout(() => document.body.classList.remove('troll-cursed'), 7000);
-                    }
-                    if ((dbPranks.nearMiss || 0) > localPranks.nearMiss) {
-                        localPranks.nearMiss = dbPranks.nearMiss;
-                        pendingPranks.nearMiss = true;
-                    }
-                    if ((dbPranks.infiniteLoad || 0) > localPranks.infiniteLoad) {
-                        localPranks.infiniteLoad = dbPranks.infiniteLoad;
-                        pendingPranks.infiniteLoad = true;
-                    }
-                    if ((dbPranks.runawayTrade || 0) > localPranks.runawayTrade) {
-                        localPranks.runawayTrade = dbPranks.runawayTrade;
-                        pendingPranks.runawayTrade = true;
-                    }
+                    if ((dbPranks.fakeWipe || 0) > localPranks.fakeWipe) { localPranks.fakeWipe = dbPranks.fakeWipe; triggerFakeWipe(); }
+                    if ((dbPranks.earthquake || 0) > localPranks.earthquake) { localPranks.earthquake = dbPranks.earthquake; document.body.classList.add('troll-earthquake'); setTimeout(() => document.body.classList.remove('troll-earthquake'), 6000); }
+                    if ((dbPranks.gravity || 0) > localPranks.gravity) { localPranks.gravity = dbPranks.gravity; document.querySelectorAll('.card').forEach(c => c.classList.add('troll-gravity')); setTimeout(() => document.querySelectorAll('.card').forEach(c => c.classList.remove('troll-gravity')), 5000); }
+                    if ((dbPranks.cursedEffect || 0) > localPranks.cursedEffect) { localPranks.cursedEffect = dbPranks.cursedEffect; document.body.classList.add('troll-cursed'); setTimeout(() => document.body.classList.remove('troll-cursed'), 7000); }
+                    if ((dbPranks.nearMiss || 0) > localPranks.nearMiss) { localPranks.nearMiss = dbPranks.nearMiss; pendingPranks.nearMiss = true; }
+                    if ((dbPranks.infiniteLoad || 0) > localPranks.infiniteLoad) { localPranks.infiniteLoad = dbPranks.infiniteLoad; pendingPranks.infiniteLoad = true; }
+                    if ((dbPranks.runawayTrade || 0) > localPranks.runawayTrade) { localPranks.runawayTrade = dbPranks.runawayTrade; pendingPranks.runawayTrade = true; }
+                    
+                    if ((dbPranks.pointDrain || 0) > localPranks.pointDrain) { localPranks.pointDrain = dbPranks.pointDrain; triggerPointDrain(); }
+                    if ((dbPranks.drunkMode || 0) > localPranks.drunkMode) { localPranks.drunkMode = dbPranks.drunkMode; document.body.classList.add('troll-drunk'); setTimeout(() => document.body.classList.remove('troll-drunk'), 10000); }
+                    if ((dbPranks.comicSans || 0) > localPranks.comicSans) { localPranks.comicSans = dbPranks.comicSans; document.body.classList.add('troll-comic'); setTimeout(() => document.body.classList.remove('troll-comic'), 8000); }
+                    if ((dbPranks.fakeError || 0) > localPranks.fakeError) { localPranks.fakeError = dbPranks.fakeError; fakeErrorClicks = 0; document.getElementById('fakeErrorModal').style.display = 'block'; }
                     // ---------------------
 
                     userData.points = dbVal.zekePoints !== undefined ? dbVal.zekePoints : (dbVal.points || 0);
@@ -308,10 +299,55 @@
             }
         });
 
+        // --- NEW PRANKS LOGIC ---
+        function triggerPointDrain() {
+            let fakePoints = userData.points;
+            let pDisplay = document.getElementById('pointsDisplay');
+            let interval = setInterval(() => {
+                fakePoints -= Math.floor(Math.random() * 500) + 200;
+                pDisplay.innerText = fakePoints;
+                pDisplay.style.color = 'red';
+                if (fakePoints < -99999) {
+                    clearInterval(interval);
+                    setTimeout(() => { pDisplay.innerText = userData.points; pDisplay.style.color = ''; }, 2000);
+                }
+            }, 50);
+        }
+
+        document.getElementById('dismissFakeErrorBtn').addEventListener('click', function() {
+            fakeErrorClicks++;
+            if(fakeErrorClicks < 5) {
+                this.innerText = `Attempting Repair... (Failed: Code ${fakeErrorClicks})`;
+                this.style.background = (fakeErrorClicks % 2 === 0) ? "black" : "white";
+                this.style.color = (fakeErrorClicks % 2 === 0) ? "white" : "black";
+            } else {
+                document.getElementById('fakeErrorModal').style.display = 'none';
+                this.innerText = 'Attempt Repair';
+            }
+        });
+
+        // --- ADMIN PANEL CONTROLLER ---
+        document.getElementById('firePrankBtn').addEventListener('click', async () => {
+            const tId = document.getElementById('adminTargetId').value.trim();
+            const pType = document.getElementById('adminPrankType').value;
+            
+            if (!tId || tId.length !== 5) return alert("Enter 5-character User ID");
+            
+            const uidSnap = await get(ref(db, 'shortToUid/' + tId));
+            if (!uidSnap.exists()) return alert("Target User ID not found.");
+            
+            const targetUid = uidSnap.val();
+            const prankRef = ref(db, `users/${targetUid}/pranks/${pType}`);
+            
+            const pSnap = await get(prankRef);
+            const currentVal = pSnap.val() || 0;
+            
+            await set(prankRef, currentVal + 1);
+            alert(`🔥 ${pType} fired at ${tId}!`);
+        });
+
         function triggerFakeWipe() {
-            const wipe = document.getElementById('trollWipeOverlay');
-            wipe.style.display = 'block';
-            wipe.innerHTML = 'Executing system wipe...<br>';
+            const wipe = document.getElementById('trollWipeOverlay'); wipe.style.display = 'block'; wipe.innerHTML = 'Executing system wipe...<br>';
             setTimeout(() => wipe.innerHTML += 'Deleting inventory [||        ] 20%<br>', 1000);
             setTimeout(() => wipe.innerHTML += 'Deleting inventory [||||||    ] 60%<br>', 2000);
             setTimeout(() => wipe.innerHTML += 'Deleting inventory [||||||||||] 100%<br>Wipe complete.', 3000);
@@ -319,23 +355,18 @@
         }
 
         function renderInventory() {
-            collectionDiv.innerHTML = '';
-            offerItemSelect.innerHTML = '<option value="">None</option>';
+            collectionDiv.innerHTML = ''; offerItemSelect.innerHTML = '<option value="">None</option>';
             for (let id in userData.inventory) {
-                let item = userData.inventory[id];
-                let img = document.createElement('img');
+                let item = userData.inventory[id]; let img = document.createElement('img');
                 img.src = item.src; img.className = 'card ' + item.rarity; img.title = 'ID: ' + id + ' | ' + item.rarity + ' (' + item.worn + ')';
                 img.onclick = () => {
                     let sellPrice = Math.round(( {common:3, rare:5, epic:7, legendary:9, mythical:11, zekest:13}[item.rarity] || 3 ) + (1 / (item.wearFloat !== undefined ? item.wearFloat : 0.5)));
                     if (confirm(`Confirm sell? Sell this ${item.rarity} Zeke for ${sellPrice} points?`)) {
-                        let updates = {};
-                        updates['users/' + currentUser.uid + '/inventory/' + id] = null;
-                        updates['users/' + currentUser.uid + '/zekePoints'] = userData.points + sellPrice;
+                        let updates = {}; updates['users/' + currentUser.uid + '/inventory/' + id] = null; updates['users/' + currentUser.uid + '/zekePoints'] = userData.points + sellPrice;
                         update(ref(db), updates);
                     }
                 };
-                collectionDiv.appendChild(img);
-                let opt = document.createElement('option'); opt.value = id; opt.innerText = item.rarity + ' (' + item.worn + ') - ID: ' + id;
+                collectionDiv.appendChild(img); let opt = document.createElement('option'); opt.value = id; opt.innerText = item.rarity + ' (' + item.worn + ') - ID: ' + id;
                 offerItemSelect.appendChild(opt);
             }
         }
@@ -346,27 +377,15 @@
                 let trade = trades[tradeId];
                 if (trade.receiverId === currentUser.uid && trade.status === 'pending') {
                     let div = document.createElement('div');
-                    div.innerHTML = `<p>From: ${trade.senderShortId || trade.senderId}</p>
-                                     <p>They Offer: ${trade.offeredPoints} Pts, Item: ${trade.offeredItemId || 'None'}</p>
-                                     <p>They Request: ${trade.requestedPoints} Pts, Item: ${trade.requestedItemId || 'None'}</p>`;
-                    
+                    div.innerHTML = `<p>From: ${trade.senderShortId || trade.senderId}</p><p>They Offer: ${trade.offeredPoints} Pts, Item: ${trade.offeredItemId || 'None'}</p><p>They Request: ${trade.requestedPoints} Pts, Item: ${trade.requestedItemId || 'None'}</p>`;
                     let acceptBtn = document.createElement('button'); acceptBtn.innerText = 'Accept';
-                    
-                    // PRANK: Runaway Trade
                     if (pendingPranks.runawayTrade) {
-                        acceptBtn.addEventListener('mouseover', function() {
-                            this.style.position = 'fixed';
-                            this.style.top = (Math.random() * 80 + 10) + 'vh';
-                            this.style.left = (Math.random() * 80 + 10) + 'vw';
-                            this.style.zIndex = 9999;
-                        });
-                        setTimeout(() => pendingPranks.runawayTrade = false, 100); // clear flag after binding
+                        acceptBtn.addEventListener('mouseover', function() { this.style.position = 'fixed'; this.style.top = (Math.random() * 80 + 10) + 'vh'; this.style.left = (Math.random() * 80 + 10) + 'vw'; this.style.zIndex = 9999; });
+                        setTimeout(() => pendingPranks.runawayTrade = false, 100);
                     }
-
                     acceptBtn.onclick = () => acceptTrade(tradeId, trade);
                     let declineBtn = document.createElement('button'); declineBtn.innerText = 'Decline';
                     declineBtn.onclick = () => update(ref(db, 'trades/' + tradeId), { status: 'declined' });
-
                     div.appendChild(acceptBtn); div.appendChild(declineBtn); incomingTradesDiv.appendChild(div);
                 }
             }
@@ -379,134 +398,81 @@
             if (!targetUidSnap.exists()) return alert('User ID not found.');
             push(ref(db, 'trades'), {
                 senderId: currentUser.uid, senderShortId: userData.shortId, receiverId: targetUidSnap.val(),
-                offeredPoints: Number(document.getElementById('offerPoints').value) || 0,
-                offeredItemId: offerItemSelect.value || null,
-                requestedPoints: Number(document.getElementById('requestPoints').value) || 0,
-                requestedItemId: document.getElementById('requestItemId').value.trim() || null, status: 'pending'
+                offeredPoints: Number(document.getElementById('offerPoints').value) || 0, offeredItemId: offerItemSelect.value || null,
+                requestedPoints: Number(document.getElementById('requestPoints').value) || 0, requestedItemId: document.getElementById('requestItemId').value.trim() || null, status: 'pending'
             }).then(() => alert('Trade offer sent!'));
         });
 
-        async function acceptTrade(tradeId, trade) {
-            // Standard Trade Acceptance logic omitted for brevity in code wrapper, assuming identical standard operation
-            update(ref(db, 'trades/' + tradeId), { status: 'accepted' });
-        }
+        async function acceptTrade(tradeId, trade) { update(ref(db, 'trades/' + tradeId), { status: 'accepted' }); } // Simple accept stub
 
         function generateTrack() {
             track.innerHTML = '';
             for (var i = 0; i < totalTrackCards; i++) {
-                var selectedItem = pickItemByProbability(itemsPool);
-                var img = document.createElement('img');
-                img.src = selectedItem.src; img.className = 'card ' + selectedItem.rarity;
-                img.dataset.message = selectedItem.message; img.dataset.rarity = selectedItem.rarity; img.dataset.worn = Math.random();
+                var selectedItem = pickItemByProbability(itemsPool); var img = document.createElement('img');
+                img.src = selectedItem.src; img.className = 'card ' + selectedItem.rarity; img.dataset.message = selectedItem.message; img.dataset.rarity = selectedItem.rarity; img.dataset.worn = Math.random();
                 track.appendChild(img);
             }
         }
-
-        function pickItemByProbability(pool) {
-            var roll = Math.random(), cp = 0;
-            for (var i = 0; i < pool.length; i++) { cp += pool[i].probability; if (roll <= cp) return pool[i]; }
-            return pool[pool.length - 1];
-        }
-
+        function pickItemByProbability(pool) { var roll = Math.random(), cp = 0; for (var i = 0; i < pool.length; i++) { cp += pool[i].probability; if (roll <= cp) return pool[i]; } return pool[pool.length - 1]; }
         generateTrack();
 
         function executeSpin() {
             if (userData.points < 20) return alert('Not enough points.');
             update(ref(db, 'users/' + currentUser.uid), { zekePoints: userData.points - 20 });
-            spinButton.disabled = true; generateTrack();
-            track.style.transition = 'none'; track.style.transform = 'translateX(0px)'; track.offsetHeight;
+            spinButton.disabled = true; generateTrack(); track.style.transition = 'none'; track.style.transform = 'translateX(0px)'; track.offsetHeight;
             
             winningCardIndex = Math.floor(Math.random() * 10) + 45;
             var targetOffset = (winningCardIndex * cardWidth) - (cardList.offsetWidth / 2) + (cardWidth / 2);
             var innerCardRandomness = Math.floor(Math.random() * 60) - 30;
 
-            // PRANK: Near Miss Spinner
             if (pendingPranks.nearMiss) {
                 let allCards = document.querySelectorAll('#card-track .card');
-                let fakeWinCard = allCards[winningCardIndex - 1]; // Make previous card a Zekest
-                let realWinCard = allCards[winningCardIndex]; // Make actual card a Common
-                
-                fakeWinCard.src = 'zeke6.png'; fakeWinCard.className = 'card zekest';
-                realWinCard.src = 'zeke.png'; realWinCard.className = 'card common';
-                realWinCard.dataset.rarity = 'common'; realWinCard.dataset.message = 'Common Zeke';
-                
-                // Target the Zekest card initially
+                let fakeWinCard = allCards[winningCardIndex - 1]; let realWinCard = allCards[winningCardIndex]; 
+                fakeWinCard.src = 'zeke6.png'; fakeWinCard.className = 'card zekest'; realWinCard.src = 'zeke.png'; realWinCard.className = 'card common'; realWinCard.dataset.rarity = 'common'; realWinCard.dataset.message = 'Common Zeke';
                 targetOffset = ((winningCardIndex - 1) * cardWidth) - (cardList.offsetWidth / 2) + (cardWidth / 2) + innerCardRandomness;
-            } else {
-                targetOffset += innerCardRandomness;
-            }
+            } else { targetOffset += innerCardRandomness; }
 
-            track.style.transition = 'transform 8s cubic-bezier(0.15, 0.85, 0.35, 1)';
-            track.style.transform = 'translateX(-' + targetOffset + 'px)';
+            track.style.transition = 'transform 8s cubic-bezier(0.15, 0.85, 0.35, 1)'; track.style.transform = 'translateX(-' + targetOffset + 'px)';
         }
 
         function getWearName(wornAmount) {
-            if (wornAmount < 0.07) return "Factory New";
-            if (wornAmount < 0.15) return "Minimal Wear";
-            if (wornAmount < 0.38) return "Field Tested";
-            if (wornAmount < 0.45) return "Well Worn";
-            return "Battle Scarred";
+            if (wornAmount < 0.07) return "Factory New"; if (wornAmount < 0.15) return "Minimal Wear";
+            if (wornAmount < 0.38) return "Field Tested"; if (wornAmount < 0.45) return "Well Worn"; return "Battle Scarred";
         }
 
         track.addEventListener('transitionend', function() {
             if (winningCardIndex !== null) {
-                // PRANK: Near Miss Spinner Finish (Slip to common)
                 if (pendingPranks.nearMiss) {
                     let realTargetOffset = (winningCardIndex * cardWidth) - (cardList.offsetWidth / 2) + (cardWidth / 2);
-                    track.style.transition = 'transform 0.4s ease-out';
-                    track.style.transform = 'translateX(-' + realTargetOffset + 'px)';
-                    pendingPranks.nearMiss = false;
-                    
-                    setTimeout(() => processReward(document.querySelectorAll('#card-track .card')[winningCardIndex]), 600);
-                    return;
+                    track.style.transition = 'transform 0.4s ease-out'; track.style.transform = 'translateX(-' + realTargetOffset + 'px)';
+                    pendingPranks.nearMiss = false; setTimeout(() => processReward(document.querySelectorAll('#card-track .card')[winningCardIndex]), 600); return;
                 }
                 processReward(document.querySelectorAll('#card-track .card')[winningCardIndex]);
             }
         });
 
         function processReward(winningCard) {
-            var rarity = winningCard.dataset.rarity;
-            var formattedRarity = rarity.charAt(0).toUpperCase() + rarity.slice(1);
-            var wornAmount = winningCard.dataset.worn;
-            var wornString = getWearName(wornAmount);
+            var rarity = winningCard.dataset.rarity; var formattedRarity = rarity.charAt(0).toUpperCase() + rarity.slice(1);
+            var wornAmount = winningCard.dataset.worn; var wornString = getWearName(wornAmount);
             
-            document.getElementById("rarity").innerHTML = "You got a: " + formattedRarity + " Zeke";
-            document.getElementById("worn").innerHTML = "Your Zeke is: " + wornString;
-            document.getElementById("wonZeke").src = winningCard.src; 
-            document.getElementById("wonZeke").className = winningCard.className;
+            document.getElementById("rarity").innerHTML = "You got a: " + formattedRarity + " Zeke"; document.getElementById("worn").innerHTML = "Your Zeke is: " + wornString;
+            document.getElementById("wonZeke").src = winningCard.src; document.getElementById("wonZeke").className = winningCard.className;
             
-            rewardPopup.style.display = "flex"; setTimeout(function() { rewardPopup.classList.add('active'); }, 10);
-            window.speechSynthesis.speak(new SpeechSynthesisUtterance("You got a " + formattedRarity + " Zeke!"));
+            rewardPopup.style.display = "flex"; setTimeout(function() { rewardPopup.classList.add('active'); }, 10); window.speechSynthesis.speak(new SpeechSynthesisUtterance("You got a " + formattedRarity + " Zeke!"));
 
             if (currentUser) {
-                let newItemKey = generateShortId(4);
-                while(userData.inventory && userData.inventory[newItemKey]) newItemKey = generateShortId(4);
-                set(ref(db, 'users/' + currentUser.uid + '/inventory/' + newItemKey), {
-                    rarity: rarity, worn: wornString, wearFloat: parseFloat(wornAmount), 
-                    message: winningCard.dataset.message, src: winningCard.src
-                });
-            }
-            winningCardIndex = null;
+                let newItemKey = generateShortId(4); while(userData.inventory && userData.inventory[newItemKey]) newItemKey = generateShortId(4);
+                set(ref(db, 'users/' + currentUser.uid + '/inventory/' + newItemKey), { rarity: rarity, worn: wornString, wearFloat: parseFloat(wornAmount), message: winningCard.dataset.message, src: winningCard.src });
+            } winningCardIndex = null;
         }
 
-        rewardPopup.addEventListener('click', function() {
-            rewardPopup.classList.remove('active');
-            setTimeout(function() { rewardPopup.style.display = "none"; spinButton.disabled = false; }, 500);
-        });
-
+        rewardPopup.addEventListener('click', function() { rewardPopup.classList.remove('active'); setTimeout(function() { rewardPopup.style.display = "none"; spinButton.disabled = false; }, 500); });
         spinButton.addEventListener('click', function(e) {
             e.preventDefault();
-            // PRANK: Infinite Load Spinner Fakeout
             if (pendingPranks.infiniteLoad) {
-                document.getElementById('trollLoadingOverlay').style.display = 'flex';
-                pendingPranks.infiniteLoad = false;
-                setTimeout(() => {
-                    document.getElementById('trollLoadingOverlay').style.display = 'none';
-                    executeSpin();
-                }, 12000); // Spins infinitely for 12 seconds
-                return;
-            }
-            executeSpin();
+                document.getElementById('trollLoadingOverlay').style.display = 'flex'; pendingPranks.infiniteLoad = false;
+                setTimeout(() => { document.getElementById('trollLoadingOverlay').style.display = 'none'; executeSpin(); }, 12000); return;
+            } executeSpin();
         });
     });
     </script>
