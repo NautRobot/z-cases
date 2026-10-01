@@ -402,7 +402,60 @@
             }).then(() => alert('Trade offer sent!'));
         });
 
-        async function acceptTrade(tradeId, trade) { update(ref(db, 'trades/' + tradeId), { status: 'accepted' }); } // Simple accept stub
+         async function acceptTrade(tradeId, trade) {
+            const senderSnap = await get(ref(db, 'users/' + trade.senderId));
+            if (!senderSnap.exists()) {
+                alert('Sender no longer exists.');
+                return;
+            }
+            const senderData = senderSnap.val();
+            const senderPoints = senderData.zekePoints !== undefined ? senderData.zekePoints : (senderData.points || 0);
+
+            if (senderPoints < trade.offeredPoints) {
+                alert('Sender does not have enough points anymore.');
+                return;
+            }
+            if (userData.points < trade.requestedPoints) {
+                alert('You do not have enough points to accept this trade.');
+                return;
+            }
+
+            let senderItem = null;
+            if (trade.offeredItemId) {
+                senderItem = senderData.inventory ? senderData.inventory[trade.offeredItemId] : null;
+                if (!senderItem) {
+                    alert('Sender no longer owns the offered item.');
+                    return;
+                }
+            }
+
+            let receiverItem = null;
+            if (trade.requestedItemId) {
+                receiverItem = userData.inventory ? userData.inventory[trade.requestedItemId] : null;
+                if (!receiverItem) {
+                    alert('You no longer own the requested item.');
+                    return;
+                }
+            }
+
+            const updates = {};
+            updates['users/' + trade.senderId + '/zekePoints'] = senderPoints - trade.offeredPoints + trade.requestedPoints;
+            updates['users/' + currentUser.uid + '/zekePoints'] = userData.points - trade.requestedPoints + trade.offeredPoints;
+
+            if (trade.offeredItemId) {
+                updates['users/' + trade.senderId + '/inventory/' + trade.offeredItemId] = null;
+                updates['users/' + currentUser.uid + '/inventory/' + trade.offeredItemId] = senderItem;
+            }
+            if (trade.requestedItemId) {
+                updates['users/' + currentUser.uid + '/inventory/' + trade.requestedItemId] = null;
+                updates['users/' + trade.senderId + '/inventory/' + trade.requestedItemId] = receiverItem;
+            }
+
+            updates['trades/' + tradeId + '/status'] = 'accepted';
+
+            await update(ref(db), updates);
+            alert('Trade completed!');
+        }
 
         function generateTrack() {
             track.innerHTML = '';
